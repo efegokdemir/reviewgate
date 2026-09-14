@@ -108,6 +108,12 @@ def _http_request(
             f"GitHub API {method} {url} returned HTTP {exc.code} "
             f"{exc.reason}"
         ) from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+        raise RuntimeError(
+            f"GitHub API {method} {url} failed due to a network error: "
+            f"{reason}"
+        ) from exc
     if not raw:
         return None, headers
     try:

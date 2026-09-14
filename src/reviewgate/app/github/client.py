@@ -317,7 +317,7 @@ def fetch_repository_text_file_contents(
 
     url = (
         f"{_GITHUB_API_ORIGIN}/repos/"
-        f"{quote(own, safe='')}/{quote(rep, safe='')}/contents/{quote(cleaned_path, safe='')}"
+        f"{quote(own, safe='')}/{quote(rep, safe='')}/contents/{quote(cleaned_path, safe='/')}"
     )
     headers = _installation_auth_headers(installation_token)
     owns_client = http_client is None

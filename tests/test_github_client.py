@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from typing import Final
 
 import httpx
@@ -14,6 +15,7 @@ from reviewgate.app.github.client import (
     GitHubRestError,
     fetch_pull_request,
     fetch_pull_request_files,
+    fetch_repository_text_file_contents,
 )
 
 _TOKEN: Final[SecretStr] = SecretStr("ghs_installation_token_example")
@@ -176,3 +178,29 @@ def test_fetch_pull_request_files_stops_at_max_page_guard(
                 pull_number=1,
                 http_client=client,
             )
+
+
+def test_fetch_repository_text_file_contents_preserves_nested_path() -> None:
+    text = "mode: both\n"
+    content = base64.b64encode(text.encode("utf-8")).decode("ascii")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/repos/acme/project/contents/config/.reviewgate.yml"
+        assert "config%2F.reviewgate.yml" not in str(request.url)
+        return httpx.Response(
+            200,
+            json={"type": "file", "encoding": "base64", "content": content},
+        )
+
+    transport = httpx.MockTransport(handler)
+    with httpx.Client(transport=transport) as client:
+        got = fetch_repository_text_file_contents(
+            _TOKEN,
+            owner="acme",
+            repo="project",
+            path="config/.reviewgate.yml",
+            git_ref="main",
+            http_client=client,
+        )
+
+    assert got == text

@@ -56,6 +56,10 @@ MARKER: Final[str] = "<!-- reviewgate:marker:v1 -->"
 _COMMENTS_MAX_PAGES: Final[int] = 30
 """Pagination ceiling for the comments listing (matches fetch_pr)."""
 
+_PERMISSION_HTTP_ERROR_RE: Final[re.Pattern[str]] = re.compile(
+    r"\bHTTP (?:401|403)\b"
+)
+
 _LINK_NEXT_RE: Final[re.Pattern[str]] = re.compile(
     r"<([^>]+)>;\s*rel=\"next\"", re.IGNORECASE
 )
@@ -108,7 +112,7 @@ def _http_request(
             f"GitHub API {method} {url} returned HTTP {exc.code} "
             f"{exc.reason}"
         ) from exc
-    except (urllib.error.URLError, TimeoutError) as exc:
+    except OSError as exc:
         reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
         raise RuntimeError(
             f"GitHub API {method} {url} failed due to a network error: "
@@ -377,9 +381,14 @@ def upsert_from_environment(
             summary_md=summary_md,
         )
     except RuntimeError as exc:
+        permission_hint = (
+            " (token likely lacks `pull-requests: write`)"
+            if _PERMISSION_HTTP_ERROR_RE.search(str(exc))
+            else ""
+        )
         msg = (
             f"comment upsert against {owner}/{repo}#{pull_number} "
-            f"failed: {exc} (token likely lacks `pull-requests: write`)"
+            f"failed: {exc}{permission_hint}"
         )
         sys.stderr.write(f"::error::{log_prefix}: {msg}\n")
         return UpsertOutcome(False, "failed", msg)

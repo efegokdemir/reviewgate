@@ -53,7 +53,7 @@ class _StubOpener:
 
     Each entry is ``(method, url_substring, status_or_body, headers)``.
     ``status_or_body`` is either a ``bytes`` payload (success) or an
-    ``HTTPError``, ``URLError``, or timeout instance (error). The
+    ``HTTPError``, ``URLError``, or ``OSError`` instance (error). The
     opener pops entries in order and asserts the request matches; tests
     with branchy logic should spell out every expected call.
     """
@@ -422,6 +422,10 @@ def test_upsert_comment_translates_http_error_to_runtime_error() -> None:
             "network error: DNS lookup failed",
         ),
         (TimeoutError("request timed out"), "network error: request timed out"),
+        (
+            ConnectionResetError("connection reset by peer"),
+            "network error: connection reset by peer",
+        ),
     ],
 )
 def test_upsert_comment_translates_network_errors_to_runtime_error(
@@ -473,6 +477,7 @@ def test_upsert_from_environment_reports_network_failure_without_raising(
     assert outcome.ok is False
     assert outcome.action == "failed"
     assert "network error" in outcome.message
+    assert "pull-requests: write" not in outcome.message
 
 
 def test_upsert_comment_raises_on_unexpected_post_response() -> None:

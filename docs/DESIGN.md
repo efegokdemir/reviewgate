@@ -589,6 +589,7 @@ The deterministic engine is the foundation of trust. It must work without LLMs.
 warn:
   files_changed: 25
   human_loc_changed: 800
+  per_file_human_loc: 0
   risky_files_changed: 2
   dependency_files_changed: 1
   config_files_changed: 1
@@ -596,10 +597,46 @@ warn:
 fail:
   files_changed: 75
   human_loc_changed: 2500
+  per_file_human_loc: 0
   risky_files_without_context: 1
 ```
 
 Important: use `human_loc_changed`, not raw LOC changed, for size severity.
+
+### Per-file LOC thresholds (issue #171)
+
+The `file_too_large` heuristic checks each categorized file's `changes`
+value only when `human_authored` is true. This measures changed LOC rather
+than total file length. The default `warn.per_file_human_loc` and
+`fail.per_file_human_loc` values are both 0, disabling this check until a
+repository opts in. Set either to a positive integer to enable its tier.
+When both are enabled, the fail limit must be at least the warn limit.
+Negative values or reversed enabled limits trigger the normal §12
+`config_invalid` recovery behavior.
+
+A file triggers medium severity when its changed LOC is above the warn
+limit; it triggers high severity above the fail limit. Exact equality
+does not trigger that tier. Only one warning is emitted per offending file,
+with `filename`, `human_loc_changed`, and `threshold` in its evidence.
+Warnings follow normal §10.13 aggregation.
+
+`thresholds.per_file_loc_exempt_paths` is an empty list by default and
+accepts gitignore-style globs. Matching files skip only `file_too_large`;
+they retain their existing file categories and still count toward
+aggregate LOC, other size checks, and all other heuristics. Unlike the
+top-level `ignored_paths`, this setting does not remove files from analysis.
+
+Example opt-in:
+
+```yaml
+thresholds:
+  warn:
+    per_file_human_loc: 300
+  fail:
+    per_file_human_loc: 800
+  per_file_loc_exempt_paths:
+    - "testdata/**"
+```
 
 ## 10.4 Post-exclusion LOC (`human_loc_changed`)
 

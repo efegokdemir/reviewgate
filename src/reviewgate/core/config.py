@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Final, Literal
 
 import yaml
-from pydantic import ConfigDict, Field, ValidationError
+from pydantic import ConfigDict, Field, ValidationError, model_validator
 
 from reviewgate.core._base import StrictModel
 # Canonical home is comment_policy.py (kept beside code_comments.py so the
@@ -154,6 +154,11 @@ class WarnThresholds(StrictModel):
         ge=0,
         description="Warn when human_loc_changed exceeds this (§10.3, §10.4 post-exclusion).",
     )
+    per_file_human_loc: int = Field(
+        default=0,
+        ge=0,
+        description="Warn above this per-file human LOC count; 0 disables the warn tier.",
+    )
     risky_files_changed: int = Field(
         default=2,
         ge=0,
@@ -182,6 +187,11 @@ class FailThresholds(StrictModel):
         ge=0,
         description="Fail when human_loc_changed exceeds this (§10.3, §10.4 post-exclusion).",
     )
+    per_file_human_loc: int = Field(
+        default=0,
+        ge=0,
+        description="High severity above this per-file human LOC count; 0 disables the fail tier.",
+    )
     risky_files_without_context: int = Field(
         default=1,
         ge=0,
@@ -200,6 +210,24 @@ class Thresholds(StrictModel):
         default_factory=FailThresholds,
         description="Fail thresholds; missing keys fall back to §10.3 defaults.",
     )
+
+    per_file_loc_exempt_paths: list[str] = Field(
+        default_factory=list,
+        description="Globs exempt from the per-file LOC check only.",
+    )
+
+    @model_validator(mode="after")
+    def validate_per_file_limits(self) -> Thresholds:
+        """Require ordered limits when both per-file tiers are enabled."""
+
+        warn = self.warn.per_file_human_loc
+        fail = self.fail.per_file_human_loc
+        if warn > 0 and fail > 0 and warn > fail:
+            raise ValueError(
+                "thresholds.fail.per_file_human_loc must be >= "
+                "thresholds.warn.per_file_human_loc when both are enabled"
+            )
+        return self
 
 
 class Policy(StrictModel):

@@ -30,7 +30,7 @@ from .pr_body import weak_body_warning
 from .report import suggested_labels
 from .risky_paths import risky_paths_warning
 from .schemas import ChangedFile, EngineInput, EngineWarning, PRRecord, ReviewabilityReport
-from .size import compute_size_stats, size_warnings
+from .size import compute_size_stats, per_file_loc_warnings, size_warnings
 from .tests_coverage import missing_tests_for_source_warning
 
 
@@ -128,6 +128,15 @@ def analyze(engine_input: EngineInput) -> ReviewabilityReport:
             warn_human_loc_changed=config.thresholds.warn.human_loc_changed,
             fail_human_loc_changed=config.thresholds.fail.human_loc_changed,
         ),
+    )
+
+    warnings.extend(
+        per_file_loc_warnings(
+            file_categories,
+            warn_per_file_human_loc=config.thresholds.warn.per_file_human_loc,
+            fail_per_file_human_loc=config.thresholds.fail.per_file_human_loc,
+            exempt_paths=config.thresholds.per_file_loc_exempt_paths,
+        )
     )
 
     warnings.extend(

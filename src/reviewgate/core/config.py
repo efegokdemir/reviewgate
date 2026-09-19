@@ -25,6 +25,7 @@ from reviewgate.core.comment_policy import (
     CodeCommentPolicy,
     CodeCommentWarnThresholds,
 )
+from reviewgate.core.pr_body import MIN_MEANINGFUL_CHARS
 from reviewgate.core.schemas import EngineWarning
 
 DEFAULT_CONFIG_PATH: Final[str] = ".reviewgate.yml"

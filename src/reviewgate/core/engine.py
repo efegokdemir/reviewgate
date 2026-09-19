@@ -26,7 +26,7 @@ from .count_warnings import warn_threshold_count_warnings
 from .ignored_paths import filter_out_ignored_paths
 from .linked_issue import linked_issue_warning
 from .mixed_concern import mixed_concern_warning
-from .pr_body import weak_body_warning
+from .pr_body import overlong_body_warning, weak_body_warning
 from .report import suggested_labels
 from .risky_paths import risky_paths_warning
 from .schemas import ChangedFile, EngineInput, EngineWarning, PRRecord, ReviewabilityReport
@@ -147,6 +147,14 @@ def analyze(engine_input: EngineInput) -> ReviewabilityReport:
         body_warning = weak_body_warning(pr.body)
         if body_warning is not None:
             warnings.append(body_warning)
+
+    body_length_warning = overlong_body_warning(
+        pr.body,
+        warn_threshold=config.thresholds.warn.pr_body_chars,
+        fail_threshold=config.thresholds.fail.pr_body_chars,
+    )
+    if body_length_warning is not None:
+        warnings.append(body_length_warning)
 
     issue_warning = linked_issue_warning(
         pr.title,

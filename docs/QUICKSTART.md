@@ -182,9 +182,12 @@ thresholds:
   warn:
     files_changed: 25
     human_loc_changed: 800
+    per_file_human_loc: 0  # optional; e.g. 300
   fail:
     files_changed: 75
     human_loc_changed: 2500
+    per_file_human_loc: 0  # optional; e.g. 800
+  per_file_loc_exempt_paths: []  # exempt only this check, e.g. ["testdata/**"]
 
 # §10.6 — paths the engine treats as risky. Defaults already cover
 # migrations, auth, billing, payments, infra/terraform, and

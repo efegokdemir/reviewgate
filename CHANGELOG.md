@@ -10,6 +10,10 @@ should be considered stable but subject to additive change.
 
 ## [Unreleased]
 
+### Added
+
+- Configurable meaningful PR-description length limits with `overlong_pr_body` warnings and validation (#142).
+
 ### Changed
 
 - **PR follow-up (stable API + guards):** ``PrAuthorKind``, automation login

@@ -29,6 +29,32 @@ def compute_config_hash_from_yaml(yaml_text: str | None) -> tuple[str, ConfigLoa
     return digest, result
 
 
+def config_hash_with_template(
+    config_hash: str,
+    template_text: str | None,
+    *,
+    enabled: bool,
+) -> str:
+    """Bind an enabled template snapshot to the effective config identity.
+
+    Args:
+        config_hash: Digest of effective configuration.
+        template_text: Exact base-revision template, or None when missing.
+        enabled: Whether template enforcement is active.
+
+    Returns:
+        Unchanged config hash when disabled; a deterministic composite otherwise.
+    """
+    if not enabled:
+        return config_hash
+    canonical = json.dumps(
+        {"config_hash": config_hash, "pr_template": template_text},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def fetch_reviewgate_yml_and_config_hash(
     installation_token: SecretStr,
     *,

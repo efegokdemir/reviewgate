@@ -13,6 +13,7 @@ import pytest
 from pydantic import SecretStr
 
 import reviewgate.app.analysis.pipeline as pipeline
+from reviewgate.app.analysis.config_hash import config_hash_with_template
 from reviewgate.app.analysis.pipeline import HostRepoContext
 from reviewgate.app.settings import AppSettings
 from reviewgate.app.storage.repositories import AnalysisNaturalKey
@@ -170,7 +171,11 @@ def test_hosted_fetches_only_when_enabled(
         repository_id=uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         pull_number=17,
         head_sha="sha",
-        config_hash="config-hash",
+        config_hash=config_hash_with_template(
+            "config-hash",
+            template,
+            enabled=enabled,
+        ),
         pr_metadata_hash="metadata-hash",
     )
     ctx = HostRepoContext(github_installation_id=9001, owner="owner", name="repo")

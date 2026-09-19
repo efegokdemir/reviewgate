@@ -255,3 +255,34 @@ def test_unchecked_checkbox_options_are_not_implicitly_required() -> None:
     )
 
     assert _check(template, template=template) is None
+
+
+def test_four_backtick_fence_cannot_be_closed_by_three() -> None:
+    """Nested 3-backtick text must not expose an H2 inside the outer block."""
+    template = "## Testing\n\n<!-- Explain testing. -->\n"
+    inside = "````\n```\n## Testing\nThis is code, not testing.\n```\n````\n"
+    warning = _check(inside, template=template)
+    assert warning is not None
+    assert warning.evidence["missing_sections"] == ["Testing"]
+    assert _check(inside + "## Testing\n\nRan regression tests.\n", template=template) is None
+
+
+def test_fence_requires_matching_marker_length_and_clean_closer() -> None:
+    template = "## Testing\n\n<!-- Explain testing. -->\n"
+    for fake_closer in ("```", "~~~~", "```` trailing", "````x"):
+        body = "````\n" + fake_closer + "\n## Testing\nFake.\n````\n"
+        warning = _check(body, template=template)
+        assert warning is not None
+        assert warning.evidence["missing_sections"] == ["Testing"]
+    valid = "````\n## Testing\nInside.\n`````   \n## Testing\nOutside.\n"
+    assert _check(valid, template=template) is None
+
+
+def test_tilde_fence_and_four_space_indentation() -> None:
+    template = "## Testing\n\n<!-- Explain testing. -->\n"
+    inside = "~~~~\n```\n## Testing\nIgnored.\n~~~~\n"
+    warning = _check(inside, template=template)
+    assert warning is not None
+    assert warning.evidence["missing_sections"] == ["Testing"]
+    # Four leading spaces are not a CommonMark fenced-code opener.
+    assert _check("    ````\n## Testing\nActual prose.\n", template=template) is None

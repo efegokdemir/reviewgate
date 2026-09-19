@@ -829,7 +829,12 @@ policy:
 ```
 
 Non-404 GitHub fetch failures propagate rather than silently treating the
-enabled check as passed.
+enabled check as passed. When enabled, the hosted analysis identity folds the
+exact base-revision template content (including a distinct missing-template
+value) into the effective config hash before enqueue dedupe and Redis keys are
+constructed. The worker revalidates this identity before reading cached or
+completed results, and the pipeline validates it again before persistence.
+Configuration and template use the same pinned base SHA whenever available.
 
 ### Missing linked issue
 

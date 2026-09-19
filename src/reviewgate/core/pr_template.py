@@ -12,7 +12,7 @@ WARN_CODE_PR_TEMPLATE_NOT_FOLLOWED: Final[str] = "pr_template_not_followed"
 
 _COMMENT: Final[re.Pattern[str]] = re.compile(r"<!--.*?-->", re.DOTALL)
 _HEADING: Final[re.Pattern[str]] = re.compile(r"^##\s+(.+?)\s*#*\s*$")
-_FENCE: Final[re.Pattern[str]] = re.compile(r"^\s*(`{3,}|~{3,})")
+_FENCE: Final[re.Pattern[str]] = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 _CHECKBOX: Final[re.Pattern[str]] = re.compile(r"^\s*[-*+]\s+\[([ xX])\]\s+(.+?)\s*$")
 _REQUIRED: Final[re.Pattern[str]] = re.compile(r"<!--\s*required\s*-->", re.IGNORECASE)
 _OPTIONAL: Final[re.Pattern[str]] = re.compile(r"\boptional\b", re.IGNORECASE)
@@ -32,15 +32,19 @@ def _sections(markdown: str) -> list[tuple[str, str]]:
     result: list[tuple[str, str]] = []
     heading: str | None = None
     lines: list[str] = []
-    fence: str | None = None
+    fence: tuple[str, int] | None = None
 
     for line in cleaned.splitlines():
         delimiter = _FENCE.match(line)
         if delimiter is not None:
-            marker = delimiter.group(1)[0]
+            run, trailing = delimiter.groups()
+            marker = run[0]
             if fence is None:
-                fence = marker
-            elif fence == marker:
+                # A backtick opener cannot have backticks in its info string.
+                if marker == "~" or "`" not in trailing:
+                    fence = (marker, len(run))
+            elif marker == fence[0] and len(run) >= fence[1] and not trailing.strip():
+                # The closing run must be long enough and have no info string.
                 fence = None
             if heading is not None:
                 lines.append(line)

@@ -12,6 +12,10 @@ should be considered stable but subject to additive change.
 
 ### Fixed
 
+- **Model-aware hosted LLM cost limits (#150):** resolve explicit per-model
+  input/output prices for pre-flight and post-hoc checks; skip unknown model
+  pricing rather than assuming mini rates, and validate paired price settings.
+
 - **Analysis rate-limit accounting (#153):** charge after worker lock,
   cache, dedupe, and context gates; use an atomic Redis natural-key marker
   to avoid consuming additional quota on retries.

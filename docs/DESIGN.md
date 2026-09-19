@@ -1041,6 +1041,23 @@ Fallback order:
 
 Set explicit budgets.
 
+Hosted model pricing must match the model selected by
+`REVIEWGATE_LLM_MODEL`. The existing bundled input/output estimates
+($0.150/$0.600 per million tokens) apply only to the exact default
+`gpt-4o-mini` model; they are historical estimates, not a live pricing feed.
+Operators must verify current provider pricing and can override both rates
+through `REVIEWGATE_LLM_INPUT_USD_PER_MILLION` and
+`REVIEWGATE_LLM_OUTPUT_USD_PER_MILLION`. Both environment variables must be
+provided together, with non-negative numeric values.
+
+For any other model without a complete explicit price pair, the hosted LLM
+stage logs `hosted_llm_skipped_unknown_model_pricing` and returns the
+deterministic report without contacting the provider. The same resolved
+prices feed both the pre-flight estimate and post-hoc token-cost accounting,
+including the parse-failure path. Pre-flight tokens and completion length are
+estimates: the $0.20 check is not a provider-enforced spending guarantee.
+Operators should update the configured rates when provider pricing changes.
+
 Initial recommended model tier:
 
 * default implementation setting: `REVIEWGATE_LLM_MODEL`

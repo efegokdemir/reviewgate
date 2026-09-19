@@ -144,6 +144,7 @@ def run_pr_analysis_stub(payload: dict[str, object]) -> None:
         ]
         | None
     ) = None
+    cache_work: tuple[AnalysisNaturalKey, dict[str, object]] | None = None
     with session_factory() as session:
         if need_installation_guard:
             if not installation_repository_may_enqueue_jobs(
@@ -283,8 +284,7 @@ def run_pr_analysis_stub(payload: dict[str, object]) -> None:
                             estimated_cost_usd=llm_outcome.estimated_cost_usd,
                         )
                         if settings.redis_url is not None:
-                            set_cached_final_report(
-                                settings,
+                            cache_work = (
                                 natural,
                                 {
                                     "reviewability": final_report.reviewability,
@@ -293,6 +293,14 @@ def run_pr_analysis_stub(payload: dict[str, object]) -> None:
                             )
                         publish_work = (ctx, natural, final_report, effective_config)
             session.commit()
+            # Never publish a cache entry for a transaction that failed.
+            if cache_work is not None:
+                try:
+                    set_cached_final_report(settings, *cache_work)
+                except Exception:
+                    # Cache availability must not suppress GitHub feedback
+                    # after the analysis has already committed.
+                    logger.exception("set_cached_final_report_failed")
 
     if publish_work is not None:
         pub_ctx, pub_key, pub_report, pub_cfg = publish_work

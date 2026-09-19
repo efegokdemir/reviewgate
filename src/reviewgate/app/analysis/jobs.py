@@ -154,21 +154,8 @@ def run_pr_analysis_stub(payload: dict[str, object]) -> None:
             ):
                 return
 
-        if need_installation_guard and settings.redis_url is not None:
-            outcome = check_analysis_rate_limits(
-                settings,
-                github_installation_id=raw_inst,
-                github_repository_id=raw_repo,
-            )
-            if outcome != "ok":
-                return
-
         with lock_ctx as lock_acquired:
-            if (
-                natural is not None
-                and settings.redis_url is not None
-                and not lock_acquired
-            ):
+            if natural is not None and settings.redis_url is not None and not lock_acquired:
                 return
 
             # §13.6 final-result cache (issue #48): composite key always includes
@@ -195,16 +182,25 @@ def run_pr_analysis_stub(payload: dict[str, object]) -> None:
                         analysis_id,
                         error_code="missing_repository_context",
                     )
-                elif (
-                    need_installation_guard
-                    and ctx.github_installation_id != raw_inst
-                ):
+                elif need_installation_guard and ctx.github_installation_id != raw_inst:
                     mark_analysis_failed(
                         session,
                         analysis_id,
                         error_code="installation_context_mismatch",
                     )
                 else:
+                    # Charge only after lock, cache, DB dedupe and context
+                    # validation. The natural key makes retried jobs free.
+                    if need_installation_guard and settings.redis_url is not None:
+                        outcome = check_analysis_rate_limits(
+                            settings,
+                            github_installation_id=raw_inst,
+                            github_repository_id=raw_repo,
+                            analysis_key=natural,
+                        )
+                        if outcome != "ok":
+                            return
+
                     try:
                         with httpx.Client(timeout=30.0) as http_client:
                             (

@@ -2272,6 +2272,16 @@ per repo: 100 analyses/day
 per PR/head SHA/config: cached
 ```
 
+Quota charging happens only after the worker lock, final-result cache,
+database deduplication, and repository-context validation have passed.
+An atomic Redis operation checks both daily counters and records a marker
+derived from the five-part analysis natural key (repository, PR number,
+head SHA, config hash, PR metadata hash). Retries of that same analysis
+reuse its existing charge, including across a UTC day boundary while
+the marker remains valid. New analysis keys consume their own quota.
+The marker and counters have a three-day TTL. Redis failures retain
+the existing fail-open behavior.
+
 ## 22.3 Huge PR handling
 
 Behavior:

@@ -16,6 +16,10 @@ should be considered stable but subject to additive change.
   input/output prices for pre-flight and post-hoc checks; skip unknown model
   pricing rather than assuming mini rates, and validate paired price settings.
 
+- **Analysis rate-limit accounting (#153):** charge after worker lock,
+  cache, dedupe, and context gates; use an atomic Redis natural-key marker
+  to avoid consuming additional quota on retries.
+
 ### Added
 
 - Configurable meaningful PR-description length limits with `overlong_pr_body` warnings and validation (#142).

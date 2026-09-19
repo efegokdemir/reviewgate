@@ -10,6 +10,10 @@ should be considered stable but subject to additive change.
 
 ## [Unreleased]
 
+### Fixed
+
+- Write the final analysis cache only after a successful database commit, so failed transactions cannot leave false cached results (#152).
+
 ### Changed
 
 - **PR follow-up (stable API + guards):** ``PrAuthorKind``, automation login

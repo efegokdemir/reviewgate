@@ -155,6 +155,11 @@ class WarnThresholds(StrictModel):
         ge=0,
         description="Warn when human_loc_changed exceeds this (§10.3, §10.4 post-exclusion).",
     )
+    pr_body_chars: int = Field(
+        default=3000,
+        ge=0,
+        description="Warn above this many meaningful PR-body characters; 0 disables both limits.",
+    )
     per_file_human_loc: int = Field(
         default=0,
         ge=0,
@@ -188,6 +193,11 @@ class FailThresholds(StrictModel):
         ge=0,
         description="Fail when human_loc_changed exceeds this (§10.3, §10.4 post-exclusion).",
     )
+    pr_body_chars: int = Field(
+        default=8000,
+        ge=0,
+        description="High-severity warning above this many meaningful PR-body characters.",
+    )
     per_file_human_loc: int = Field(
         default=0,
         ge=0,
@@ -216,6 +226,23 @@ class Thresholds(StrictModel):
         default_factory=list,
         description="Globs exempt from the per-file LOC check only.",
     )
+
+    @model_validator(mode="after")
+    def validate_pr_body_chars(self) -> Thresholds:
+        """Allow both limits to be disabled or require ordered valid bounds."""
+
+        warn = self.warn.pr_body_chars
+        fail = self.fail.pr_body_chars
+        if warn == fail == 0:
+            return self
+        if warn < MIN_MEANINGFUL_CHARS:
+            raise ValueError(
+                f"PR-body warn limit must be at least {MIN_MEANINGFUL_CHARS}, "
+                "or both limits must be 0 to disable the check"
+            )
+        if fail < warn:
+            raise ValueError("PR-body fail limit must be >= warn limit")
+        return self
 
     @model_validator(mode="after")
     def validate_per_file_limits(self) -> Thresholds:

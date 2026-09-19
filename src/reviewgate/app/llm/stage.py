@@ -13,7 +13,7 @@ from reviewgate.core.schemas import ReviewabilityReport
 from reviewgate.app.analysis.pipeline import PipelineAnalysisArtifacts
 from reviewgate.app.llm.budgets import (
     _HARD_MAX_USD_PER_ANALYSIS,
-    estimate_cost_usd,
+    _unrounded_cost_usd,
     estimated_prompt_cost_within_hard_cap,
     llm_input_packaging_mode,
     resolve_model_token_prices,
@@ -67,16 +67,17 @@ def _usage_cost_fields(
     provider = usage.provider if usage is not None else None
     cost: Decimal | None = None
     if in_tok is not None and out_tok is not None:
-        cost = estimate_cost_usd(
+        raw_cost = _unrounded_cost_usd(
             input_tokens=in_tok,
             output_tokens=out_tok,
             input_per_million=input_per_million,
             output_per_million=output_per_million,
         )
-        if cost > _HARD_MAX_USD_PER_ANALYSIS:
+        cost = raw_cost.quantize(Decimal("0.0001"))
+        if raw_cost > _HARD_MAX_USD_PER_ANALYSIS:
             logger.warning(
                 "hosted_llm_post_hoc_cost_over_cap",
-                extra={"estimated_cost_usd": str(cost)},
+                extra={"estimated_cost_usd": str(raw_cost)},
             )
     return provider, in_tok, out_tok, cost
 

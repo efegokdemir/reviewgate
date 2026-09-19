@@ -15,7 +15,10 @@ from reviewgate.app.llm.budgets import (
     resolve_model_token_prices,
 )
 from reviewgate.app.llm.client import LlmCallResult, LlmCallUsage
-from reviewgate.app.llm.stage import maybe_apply_hosted_llm_stage
+from reviewgate.app.llm.stage import (
+    _usage_cost_fields,
+    maybe_apply_hosted_llm_stage,
+)
 from reviewgate.app.settings import AppSettings
 from reviewgate.core.config import ReviewGateConfig
 from reviewgate.core.schemas import ChangedFile, PRRecord, ReviewabilityReport
@@ -231,4 +234,52 @@ def test_post_hoc_cap_checks_custom_prices_on_parse_failure(
     ):
         outcome = _run_stage(settings)
     assert outcome.estimated_cost_usd == Decimal("0.2510")
+    assert "hosted_llm_post_hoc_cost_over_cap" in caplog.text
+
+
+def test_preflight_detects_subcent_overrun() -> None:
+    """Display rounding must not hide a cost above the cap."""
+
+    prices = {
+        "input_per_million": Decimal("1"),
+        "output_per_million": Decimal("0"),
+    }
+    assert estimate_cost_usd(
+        input_tokens=200_001,
+        output_tokens=0,
+        **prices,
+    ) == Decimal("0.2000")
+
+    assert estimated_prompt_cost_within_hard_cap(
+        estimated_input_tokens=200_000,
+        assumed_output_tokens=0,
+        **prices,
+    )
+    assert not estimated_prompt_cost_within_hard_cap(
+        estimated_input_tokens=200_001,
+        assumed_output_tokens=0,
+        **prices,
+    )
+
+
+def test_posthoc_detects_subcent_overrun(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The post-hoc warning compares unrounded provider usage."""
+
+    usage = LlmCallUsage(
+        input_tokens=200_001,
+        output_tokens=0,
+        provider="openai",
+    )
+    provider, in_tok, out_tok, cost = _usage_cost_fields(
+        usage,
+        input_per_million=Decimal("1"),
+        output_per_million=Decimal("0"),
+    )
+
+    assert provider == "openai"
+    assert in_tok == 200_001
+    assert out_tok == 0
+    assert cost == Decimal("0.2000")
     assert "hosted_llm_post_hoc_cost_over_cap" in caplog.text

@@ -201,10 +201,13 @@ thresholds:                          # §10.3
     files_changed: 25
     human_loc_changed: 800
     pr_body_chars: 3000
+    per_file_human_loc: 0             # opt in: e.g. 300
   fail:
     files_changed: 75
     human_loc_changed: 2500
     pr_body_chars: 8000
+    per_file_human_loc: 0             # opt in: e.g. 800
+  per_file_loc_exempt_paths: []       # e.g. ["testdata/**"]
 
 policy:                              # §10.10
   require_linked_issue: true
@@ -238,6 +241,8 @@ status_check:                        # §13.10
 ```
 
 The PR-body limits count meaningful non-whitespace characters after removing Markdown/template scaffolding. Above the warn limit produces `overlong_pr_body` (medium); above the fail limit produces high severity. Set both `pr_body_chars` values to `0` to disable this check. The fail limit must be at least the warn limit, and enabled limits must start at 80 characters or more.
+
+The per-file LOC check is disabled by default. Set `thresholds.warn.per_file_human_loc` and/or `thresholds.fail.per_file_human_loc` to positive values to enable it; a file triggers a tier only when its changed human LOC is **above** that limit. If both are enabled, the fail limit must not be lower than the warn limit. `thresholds.per_file_loc_exempt_paths` uses gitignore-style globs and affects only `file_too_large`; exempt files still contribute to aggregate size and all other checks.
 
 Strict by design:
 
@@ -279,6 +284,7 @@ module ties back to a §-numbered section of `docs/DESIGN.md`:
 | ------------ | -------- | ------- | ------- |
 | `too_many_files_changed` | medium / high | `files_changed > thresholds.warn / fail.files_changed` | §10.3 |
 | `too_large_human_loc` | medium / high | `human_loc_changed > thresholds.warn / fail.human_loc_changed` | §10.3 / §10.4 |
+| `file_too_large` | medium / high | An individual non-exempt human file exceeds an enabled per-file LOC threshold | #171 |
 | `weak_pr_body` | medium | empty / whitespace / template-only / < 80 meaningful chars | §10.10 |
 | `missing_linked_issue` | medium | no `#123`, `GH-123`, `fixes #…`, external tracker URL, or `ABC-123` | §10.10 |
 | `risky_paths_without_rationale` | high | risky paths touched and PR body has no justification | §10.10 |

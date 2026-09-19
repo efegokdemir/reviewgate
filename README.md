@@ -191,6 +191,14 @@ asserts `pyproject.toml` does not pull a forbidden runtime dependency.
 Drop a `.reviewgate.yml` at the repo root on the default branch. Every
 key has a documented default; an empty file is valid.
 
+Hosted LLM pricing is configured by **application environment variables**,
+not repository YAML. The built-in historical estimates are used only for
+the default `gpt-4o-mini` model. When changing `REVIEWGATE_LLM_MODEL`, set
+both `REVIEWGATE_LLM_INPUT_USD_PER_MILLION` and
+`REVIEWGATE_LLM_OUTPUT_USD_PER_MILLION` to the provider's verified USD prices
+per million tokens. An unknown model without both rates is skipped rather
+than being billed at the mini-model rate; see `docs/DESIGN.md` §11.4.
+
 ```yaml
 version: 1
 mode: app                           # §14.1 coexistence: app | action | both

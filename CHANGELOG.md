@@ -10,6 +10,12 @@ should be considered stable but subject to additive change.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Model-aware hosted LLM cost limits (#150):** resolve explicit per-model
+  input/output prices for pre-flight and post-hoc checks; skip unknown model
+  pricing rather than assuming mini rates, and validate paired price settings.
+
 ### Changed
 
 - **PR follow-up (stable API + guards):** ``PrAuthorKind``, automation login

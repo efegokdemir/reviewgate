@@ -10,6 +10,35 @@ from typing import Final, Literal
 _DEFAULT_INPUT_USD_PER_MILLION: Final[Decimal] = Decimal("0.150")
 _DEFAULT_OUTPUT_USD_PER_MILLION: Final[Decimal] = Decimal("0.600")
 _HARD_MAX_USD_PER_ANALYSIS: Final[Decimal] = Decimal("0.20")
+_DEFAULT_PRICED_MODEL: Final[str] = "gpt-4o-mini"
+
+
+def resolve_model_token_prices(
+    model: str,
+    *,
+    input_per_million: Decimal | None = None,
+    output_per_million: Decimal | None = None,
+) -> tuple[Decimal, Decimal] | None:
+    """Resolve model-specific token prices without guessing unknown rates.
+
+    Explicit operator-provided prices override the built-in default. The
+    bundled historical estimates apply only to the exact default model.
+    Unknown models without a complete explicit price pair return ``None``.
+    """
+
+    if input_per_million is not None and output_per_million is not None:
+        if input_per_million < 0 or output_per_million < 0:
+            return None
+        return input_per_million, output_per_million
+
+    if input_per_million is not None or output_per_million is not None:
+        return None
+
+    if model.strip() == _DEFAULT_PRICED_MODEL:
+        return _DEFAULT_INPUT_USD_PER_MILLION, _DEFAULT_OUTPUT_USD_PER_MILLION
+
+    return None
+
 
 LlmInputPackaging = Literal["full", "summary_only"]
 
@@ -67,11 +96,15 @@ def estimated_prompt_cost_within_hard_cap(
     *,
     estimated_input_tokens: int,
     assumed_output_tokens: int,
+    input_per_million: Decimal = _DEFAULT_INPUT_USD_PER_MILLION,
+    output_per_million: Decimal = _DEFAULT_OUTPUT_USD_PER_MILLION,
 ) -> bool:
     """Return ``False`` when a call would exceed the §11.4 hard cap (estimate)."""
 
     est = estimate_cost_usd(
         input_tokens=estimated_input_tokens,
         output_tokens=assumed_output_tokens,
+        input_per_million=input_per_million,
+        output_per_million=output_per_million,
     )
     return est <= _HARD_MAX_USD_PER_ANALYSIS

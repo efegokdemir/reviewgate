@@ -796,6 +796,21 @@ Warn if body is:
 * fewer than 80 meaningful characters
 * mostly template headings without content
 
+### Overlong PR body (issue #142)
+
+Count meaningful non-whitespace characters using the same normalization
+as the weak-body check. By default, descriptions exceeding 3,000
+characters emit `overlong_pr_body` with medium severity; exceeding
+8,000 emits high severity. Exact threshold values do not trigger the
+next tier. The warning includes the count and both thresholds as evidence
+and follows the normal §10.13 verdict aggregation.
+
+Configure these limits via `thresholds.warn.pr_body_chars` and
+`thresholds.fail.pr_body_chars`. The fail limit must be at least the warn
+limit, and the enabled warn limit must be at least 80. Set both to zero
+to disable the upper-bound check. Invalid configurations follow the
+existing §12 fallback-to-defaults behavior. No LLM is involved.
+
 ### Missing linked issue
 
 Warn if no issue/ticket reference appears in title or body.

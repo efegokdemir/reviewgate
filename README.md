@@ -200,9 +200,11 @@ thresholds:                          # §10.3
   warn:
     files_changed: 25
     human_loc_changed: 800
+    pr_body_chars: 3000
   fail:
     files_changed: 75
     human_loc_changed: 2500
+    pr_body_chars: 8000
 
 policy:                              # §10.10
   require_linked_issue: true
@@ -234,6 +236,8 @@ status_check:                        # §13.10
   name: reviewgate/reviewability
   fail_on: FAIL
 ```
+
+The PR-body limits count meaningful non-whitespace characters after removing Markdown/template scaffolding. Above the warn limit produces `overlong_pr_body` (medium); above the fail limit produces high severity. Set both `pr_body_chars` values to `0` to disable this check. The fail limit must be at least the warn limit, and enabled limits must start at 80 characters or more.
 
 Strict by design:
 

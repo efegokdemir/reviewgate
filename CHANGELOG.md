@@ -10,6 +10,12 @@ should be considered stable but subject to additive change.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Analysis rate-limit accounting (#153):** charge after worker lock,
+  cache, dedupe, and context gates; use an atomic Redis natural-key marker
+  to avoid consuming additional quota on retries.
+
 ### Changed
 
 - **PR follow-up (stable API + guards):** ``PrAuthorKind``, automation login

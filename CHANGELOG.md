@@ -10,6 +10,24 @@ should be considered stable but subject to additive change.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Model-aware hosted LLM cost limits (#150):** resolve explicit per-model
+  input/output prices for pre-flight and post-hoc checks; skip unknown model
+  pricing rather than assuming mini rates, and validate paired price settings.
+
+- **Analysis rate-limit accounting (#153):** charge after worker lock,
+  cache, dedupe, and context gates; use an atomic Redis natural-key marker
+  to avoid consuming additional quota on retries.
+
+### Added
+
+- Configurable meaningful PR-description length limits with `overlong_pr_body` warnings and validation (#142).
+
+### Fixed
+
+- Write the final analysis cache only after a successful database commit, so failed transactions cannot leave false cached results (#152).
+
 ### Changed
 
 - **PR follow-up (stable API + guards):** ``PrAuthorKind``, automation login
@@ -34,6 +52,8 @@ should be considered stable but subject to additive change.
 - **PR-template conformance (issue #170):** opt-in structural checking,
   required-section and explicitly required-checkbox detection, base-branch
   template retrieval in Action and hosted App, and warning/label integration.
+
+- **Per-file LOC thresholds (#171):** optional configurable warn/fail limits, per-check path exemptions, deterministic `file_too_large` warnings, and normal verdict/label integration.
 - **Excessive code-comment verbosity heuristic (issue #143):** new
   [`code_comments.py`](src/reviewgate/core/code_comments.py) core module
   emits deterministic `oversized_comment_block`, `excessive_comment_lines`,

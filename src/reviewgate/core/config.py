@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Final, Literal
 
 import yaml
-from pydantic import ConfigDict, Field, ValidationError
+from pydantic import ConfigDict, Field, ValidationError, model_validator
 
 from reviewgate.core._base import StrictModel
 # Canonical home is comment_policy.py (kept beside code_comments.py so the
@@ -25,6 +25,7 @@ from reviewgate.core.comment_policy import (
     CodeCommentPolicy,
     CodeCommentWarnThresholds,
 )
+from reviewgate.core.pr_body import MIN_MEANINGFUL_CHARS
 from reviewgate.core.schemas import EngineWarning
 
 DEFAULT_CONFIG_PATH: Final[str] = ".reviewgate.yml"
@@ -154,6 +155,16 @@ class WarnThresholds(StrictModel):
         ge=0,
         description="Warn when human_loc_changed exceeds this (§10.3, §10.4 post-exclusion).",
     )
+    pr_body_chars: int = Field(
+        default=3000,
+        ge=0,
+        description="Warn above this many meaningful PR-body characters; 0 disables both limits.",
+    )
+    per_file_human_loc: int = Field(
+        default=0,
+        ge=0,
+        description="Warn above this per-file human LOC count; 0 disables the warn tier.",
+    )
     risky_files_changed: int = Field(
         default=2,
         ge=0,
@@ -182,6 +193,16 @@ class FailThresholds(StrictModel):
         ge=0,
         description="Fail when human_loc_changed exceeds this (§10.3, §10.4 post-exclusion).",
     )
+    pr_body_chars: int = Field(
+        default=8000,
+        ge=0,
+        description="High-severity warning above this many meaningful PR-body characters.",
+    )
+    per_file_human_loc: int = Field(
+        default=0,
+        ge=0,
+        description="High severity above this per-file human LOC count; 0 disables the fail tier.",
+    )
     risky_files_without_context: int = Field(
         default=1,
         ge=0,
@@ -200,6 +221,41 @@ class Thresholds(StrictModel):
         default_factory=FailThresholds,
         description="Fail thresholds; missing keys fall back to §10.3 defaults.",
     )
+
+    per_file_loc_exempt_paths: list[str] = Field(
+        default_factory=list,
+        description="Globs exempt from the per-file LOC check only.",
+    )
+
+    @model_validator(mode="after")
+    def validate_pr_body_chars(self) -> Thresholds:
+        """Allow both limits to be disabled or require ordered valid bounds."""
+
+        warn = self.warn.pr_body_chars
+        fail = self.fail.pr_body_chars
+        if warn == fail == 0:
+            return self
+        if warn < MIN_MEANINGFUL_CHARS:
+            raise ValueError(
+                f"PR-body warn limit must be at least {MIN_MEANINGFUL_CHARS}, "
+                "or both limits must be 0 to disable the check"
+            )
+        if fail < warn:
+            raise ValueError("PR-body fail limit must be >= warn limit")
+        return self
+
+    @model_validator(mode="after")
+    def validate_per_file_limits(self) -> Thresholds:
+        """Require ordered limits when both per-file tiers are enabled."""
+
+        warn = self.warn.per_file_human_loc
+        fail = self.fail.per_file_human_loc
+        if warn > 0 and fail > 0 and warn > fail:
+            raise ValueError(
+                "thresholds.fail.per_file_human_loc must be >= "
+                "thresholds.warn.per_file_human_loc when both are enabled"
+            )
+        return self
 
 
 class Policy(StrictModel):

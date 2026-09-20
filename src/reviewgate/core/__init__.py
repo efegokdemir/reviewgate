@@ -81,7 +81,13 @@ from .pr_body import weak_body_warning
 from .pr_template import WARN_CODE_PR_TEMPLATE_NOT_FOLLOWED, pr_template_warning
 from .report import suggested_labels
 from .risky_paths import risky_paths_warning
-from .size import SizeStats, compute_size_stats, size_warnings
+from .size import (
+    WARN_CODE_FILE_TOO_LARGE,
+    SizeStats,
+    compute_size_stats,
+    per_file_loc_warnings,
+    size_warnings,
+)
 from .schemas import (
     ChangedFile,
     EngineInput,
@@ -120,6 +126,7 @@ __all__ = [
     "WARN_CODE_COMMENT_HEAVY",
     "WARN_CODE_PR_TEMPLATE_NOT_FOLLOWED",
     "WARN_CODE_EXCESSIVE_LINES",
+    "WARN_CODE_FILE_TOO_LARGE",
     "WARN_CODE_OVERSIZED_BLOCK",
     "WarningSeverity",
     "Categorizer",
@@ -150,6 +157,7 @@ __all__ = [
     "mixed_concern",
     "mixed_concern_warning",
     "paths",
+    "per_file_loc_warnings",
     "pr_body",
     "pr_template",
     "pr_template_warning",

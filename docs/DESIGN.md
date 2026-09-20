@@ -589,6 +589,7 @@ The deterministic engine is the foundation of trust. It must work without LLMs.
 warn:
   files_changed: 25
   human_loc_changed: 800
+  per_file_human_loc: 0
   risky_files_changed: 2
   dependency_files_changed: 1
   config_files_changed: 1
@@ -596,10 +597,46 @@ warn:
 fail:
   files_changed: 75
   human_loc_changed: 2500
+  per_file_human_loc: 0
   risky_files_without_context: 1
 ```
 
 Important: use `human_loc_changed`, not raw LOC changed, for size severity.
+
+### Per-file LOC thresholds (issue #171)
+
+The `file_too_large` heuristic checks each categorized file's `changes`
+value only when `human_authored` is true. This measures changed LOC rather
+than total file length. The default `warn.per_file_human_loc` and
+`fail.per_file_human_loc` values are both 0, disabling this check until a
+repository opts in. Set either to a positive integer to enable its tier.
+When both are enabled, the fail limit must be at least the warn limit.
+Negative values or reversed enabled limits trigger the normal §12
+`config_invalid` recovery behavior.
+
+A file triggers medium severity when its changed LOC is above the warn
+limit; it triggers high severity above the fail limit. Exact equality
+does not trigger that tier. Only one warning is emitted per offending file,
+with `filename`, `human_loc_changed`, and `threshold` in its evidence.
+Warnings follow normal §10.13 aggregation.
+
+`thresholds.per_file_loc_exempt_paths` is an empty list by default and
+accepts gitignore-style globs. Matching files skip only `file_too_large`;
+they retain their existing file categories and still count toward
+aggregate LOC, other size checks, and all other heuristics. Unlike the
+top-level `ignored_paths`, this setting does not remove files from analysis.
+
+Example opt-in:
+
+```yaml
+thresholds:
+  warn:
+    per_file_human_loc: 300
+  fail:
+    per_file_human_loc: 800
+  per_file_loc_exempt_paths:
+    - "testdata/**"
+```
 
 ## 10.4 Post-exclusion LOC (`human_loc_changed`)
 
@@ -836,6 +873,21 @@ constructed. The worker revalidates this identity before reading cached or
 completed results, and the pipeline validates it again before persistence.
 Configuration and template use the same pinned base SHA whenever available.
 
+### Overlong PR body (issue #142)
+
+Count meaningful non-whitespace characters using the same normalization
+as the weak-body check. By default, descriptions exceeding 3,000
+characters emit `overlong_pr_body` with medium severity; exceeding
+8,000 emits high severity. Exact threshold values do not trigger the
+next tier. The warning includes the count and both thresholds as evidence
+and follows the normal §10.13 verdict aggregation.
+
+Configure these limits via `thresholds.warn.pr_body_chars` and
+`thresholds.fail.pr_body_chars`. The fail limit must be at least the warn
+limit, and the enabled warn limit must be at least 80. Set both to zero
+to disable the upper-bound check. Invalid configurations follow the
+existing §12 fallback-to-defaults behavior. No LLM is involved.
+
 ### Missing linked issue
 
 Warn if no issue/ticket reference appears in title or body.
@@ -949,11 +1001,20 @@ emitted.
 
 A hunk that does not start at new-file line 0 or 1 begins at a lexical
 position the patch does not establish. It starts unestablished and is
-analyzed only once its own context lines establish a normal code position:
-two consecutive context lines that all scan clean, with no string, block
-comment, or heredoc left open. A single context line is not evidence,
-because a line of docstring prose and a line of code are indistinguishable
-on their own. Until established, a hunk contributes nothing.
+analyzed only once two consecutive context lines establish a normal code
+position. Each of those lines must satisfy two independent conditions: it
+leaves no multi-line construct open (no string, block comment, or heredoc),
+and it carries a code token. Scanning clean alone is not evidence of a code
+position, because two lines of docstring prose scan clean under a reset
+scanner and would otherwise establish a position that does not exist. Blank
+context lines are neutral: they neither extend the run nor break it, so two
+blanks cannot establish a hunk on no evidence while the `code / blank /
+code` context that `git diff -U3` produces still can. Until established, a
+hunk contributes nothing. The residual case, a hunk beginning two or more
+lines into a multi-line string body whose leading context lines happen to
+carry code tokens, is disclosed in the README rather than claimed to be
+impossible, because a patch does not carry enough information to rule it
+out.
 
 ### Language coverage
 
@@ -1019,6 +1080,23 @@ Fallback order:
 ## 11.4 Token and cost budget
 
 Set explicit budgets.
+
+Hosted model pricing must match the model selected by
+`REVIEWGATE_LLM_MODEL`. The existing bundled input/output estimates
+($0.150/$0.600 per million tokens) apply only to the exact default
+`gpt-4o-mini` model; they are historical estimates, not a live pricing feed.
+Operators must verify current provider pricing and can override both rates
+through `REVIEWGATE_LLM_INPUT_USD_PER_MILLION` and
+`REVIEWGATE_LLM_OUTPUT_USD_PER_MILLION`. Both environment variables must be
+provided together, with non-negative numeric values.
+
+For any other model without a complete explicit price pair, the hosted LLM
+stage logs `hosted_llm_skipped_unknown_model_pricing` and returns the
+deterministic report without contacting the provider. The same resolved
+prices feed both the pre-flight estimate and post-hoc token-cost accounting,
+including the parse-failure path. Pre-flight tokens and completion length are
+estimates: the $0.20 check is not a provider-enforced spending guarantee.
+Operators should update the configured rates when provider pricing changes.
 
 Initial recommended model tier:
 
@@ -2233,6 +2311,16 @@ per installation: 500 analyses/day
 per repo: 100 analyses/day
 per PR/head SHA/config: cached
 ```
+
+Quota charging happens only after the worker lock, final-result cache,
+database deduplication, and repository-context validation have passed.
+An atomic Redis operation checks both daily counters and records a marker
+derived from the five-part analysis natural key (repository, PR number,
+head SHA, config hash, PR metadata hash). Retries of that same analysis
+reuse its existing charge, including across a UTC day boundary while
+the marker remains valid. New analysis keys consume their own quota.
+The marker and counters have a three-day TTL. Redis failures retain
+the existing fail-open behavior.
 
 ## 22.3 Huge PR handling
 

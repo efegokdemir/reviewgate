@@ -116,6 +116,15 @@ def test_template_content_is_an_authoritative_identity_input() -> None:
     )
 
 
+def test_template_identity_is_stable_for_exact_snapshot() -> None:
+    first = config_hash_with_template("cfg", "## Testing\n", enabled=True)
+    second = config_hash_with_template("cfg", "## Testing\n", enabled=True)
+    whitespace_change = config_hash_with_template("cfg", "## Testing", enabled=True)
+
+    assert first == second
+    assert first != whitespace_change
+
+
 def test_enqueue_changed_template_does_not_reuse_completed_analysis(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

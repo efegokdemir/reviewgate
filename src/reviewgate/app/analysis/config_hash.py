@@ -4,7 +4,10 @@ Fetches ``.reviewgate.yml`` from the repository at a caller-supplied ref (PR
 ``base`` branch) via the GitHub contents API, then runs
 :func:`reviewgate.core.config.load_config`
 so malformed YAML still yields defaults plus §12 warnings. The digest covers the
-effective :class:`~reviewgate.core.config.ReviewGateConfig` JSON only.
+effective :class:`~reviewgate.core.config.ReviewGateConfig` JSON. When PR
+template enforcement is enabled, :func:`config_hash_with_template` extends
+that identity with the exact template snapshot used by the engine, so cache
+and database deduplication cannot reuse a result for a different template.
 """
 
 from __future__ import annotations
@@ -44,6 +47,10 @@ def config_hash_with_template(
 
     Returns:
         Unchanged config hash when disabled; a deterministic composite otherwise.
+
+    The composite deliberately includes the template text rather than only a
+    boolean policy flag: the template is an authoritative engine input and
+    changing it must produce a different natural/cache identity.
     """
     if not enabled:
         return config_hash
